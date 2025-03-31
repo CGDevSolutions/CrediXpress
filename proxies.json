@@ -1,0 +1,11 @@
+{
+    "$schema": "http://json.schemastore.org/proxies",
+    "proxies": {
+        "loginProxy": {
+            "matchCondition": {
+                "route": "/api/login"
+            },
+            "backendUri": "https://<your-function-app>.azurewebsites.net/api/login"
+        }
+    }
+}
