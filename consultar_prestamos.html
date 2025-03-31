@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consultar Préstamos</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: #f8f9fa;
+        }
+        .container {
+            margin-top: 2rem;
+        }
+        table {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="index.html">Inicio</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="calculadora.html">Calculadora</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="ingresar_cliente.html">Ingresar Cliente</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="consultar_clientes.html">Consultar Clientes</a>
+                    </li> 
+                    <li class="nav-item">
+                        <a class="nav-link" href="consultar_prestamos.html">Consultar Préstamos</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="configuracion.html">Configuración</a>
+                    </li>
+                </ul>
+            </div>
+            <button class="btn btn-danger" onclick="cerrarSesion()">Cerrar Sesión</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h2 class="my-4 text-center">Consultar Préstamos</h2>
+        <div class="mb-3">
+            <input type="text" class="form-control" id="nombreCliente" placeholder="Nombre del Cliente">
+            <input type="text" class="form-control mt-2" id="duiCliente" placeholder="DUI del Cliente">
+        </div>
+        <div id="resultadoPrestamo"></div>
+    </div>
+
+    <!-- Modal para detalles del préstamo -->
+    <div class="modal fade" id="detallesPrestamoModal" tabindex="-1" aria-labelledby="detallesPrestamoModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="detallesPrestamoModalLabel">Detalles del Préstamo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <h4>Datos del Cliente</h4>
+                    <p><strong>Nombre:</strong> <span id="clienteNombre"></span></p>
+                    <p><strong>DUI:</strong> <span id="clienteDui"></span></p>
+                    <p><strong>Edad:</strong> <span id="clienteEdad"></span></p>
+                    <hr>
+                    <h4>Tabla de Amortización</h4>
+                    <table class="table table-striped" id="tablaAmortizacion">
+                        <thead>
+                            <tr>
+                                <th>N° Cuota</th>
+                                <th>Fecha Pago</th>
+                                <th>Monto Cuota</th>
+                                <th>Interés</th>
+                                <th>Capital</th>
+                                <th>Saldo Restante</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Datos de la tabla de amortización se cargarán aquí -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Cargar todos los préstamos al iniciar la página
+        document.addEventListener("DOMContentLoaded", function () {
+            cargarTodosLosPrestamos();
+
+            // Escuchar cambios en los campos de búsqueda
+            document.getElementById("nombreCliente").addEventListener("input", buscarPrestamo);
+            document.getElementById("duiCliente").addEventListener("input", buscarPrestamo);
+        });
+
+        // Función para cargar todos los préstamos
+        function cargarTodosLosPrestamos() {
+            fetch('consultar_prestamos.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ nombreCliente: "", duiCliente: "" }) // Envía campos vacíos para obtener todos los préstamos
+            })
+            .then(response => response.json())
+            .then(data => {
+                mostrarPrestamos(data);
+            })
+            .catch(error => {
+                console.error('Error al cargar préstamos:', error);
+                alert('Error al cargar préstamos. Verifica la consola para más detalles.');
+            });
+        }
+
+        // Función para buscar préstamos por nombre o DUI
+        function buscarPrestamo() {
+            const nombreCliente = document.getElementById("nombreCliente").value;
+            const duiCliente = document.getElementById("duiCliente").value;
+
+            fetch('consultar_prestamos.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ nombreCliente: nombreCliente, duiCliente: duiCliente })
+            })
+            .then(response => response.json())
+            .then(data => {
+                mostrarPrestamos(data);
+            })
+            .catch(error => {
+                console.error('Error al buscar préstamo:', error);
+                alert('Error al buscar préstamo. Verifica la consola para más detalles.');
+            });
+        }
+
+        // Función para mostrar los préstamos en la tabla
+        function mostrarPrestamos(data) {
+            const resultadoPrestamo = document.getElementById("resultadoPrestamo");
+            if (data.length > 0) {
+                let tabla = `<table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>ID Préstamo</th>
+                            <th>Nombre del Cliente</th>
+                            <th>DUI</th>
+                            <th>Monto</th>
+                            <th>Interés</th>
+                            <th>Modalidad</th>
+                            <th>Plazo</th>
+                            <th>Total a Pagar</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+                data.forEach(prestamo => {
+                    tabla += `
+                        <tr>
+                            <td>${prestamo.id}</td>
+                            <td>${prestamo.nombre_completo}</td>
+                            <td>${prestamo.dui}</td>
+                            <td>${prestamo.monto}</td>
+                            <td>${prestamo.interes}</td>
+                            <td>${prestamo.modalidad}</td>
+                            <td>${prestamo.plazo}</td>
+                            <td>${prestamo.total_pagar}</td>
+                            <td>${prestamo.estado}</td>
+                            <td>
+                                <button class="btn btn-info btn-sm" onclick="verDetallesPrestamo(${prestamo.id})">Ver Detalles</button>
+                                <button class="btn btn-success btn-sm" onclick="realizarAbono(${prestamo.id})">Realizar Abono</button>
+                                <button class="btn btn-danger btn-sm" onclick="eliminarPrestamo(${prestamo.id})">Eliminar</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                tabla += `</tbody></table>`;
+                resultadoPrestamo.innerHTML = tabla;
+            } else {
+                resultadoPrestamo.innerHTML = "<p>No se encontraron préstamos.</p>";
+            }
+        }
+
+        // Función para realizar un abono
+        function realizarAbono(id) {
+            const montoAbono = prompt("Ingrese el monto del abono:");
+            if (montoAbono && !isNaN(montoAbono)) {
+                fetch('realizar_abono.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ prestamoId: id, montoAbono: montoAbono })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    alert(data.message);
+                    cargarTodosLosPrestamos(); // Recargar la lista de préstamos
+                })
+                .catch(error => {
+                    console.error('Error al realizar abono:', error);
+                    alert('Error al realizar abono. Verifica la consola para más detalles.');
+                });
+            } else {
+                alert("Ingrese un monto válido.");
+            }
+        }
+
+        // Función para ver detalles del préstamo
+        function verDetallesPrestamo(id) {
+            fetch(`obtener_detalles_prestamo.php?id=${id}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("clienteNombre").textContent = data.cliente.nombre;
+                    document.getElementById("clienteDui").textContent = data.cliente.dui;
+                    document.getElementById("clienteEdad").textContent = data.cliente.edad;
+
+                    const tablaAmortizacion = document.getElementById("tablaAmortizacion").getElementsByTagName('tbody')[0];
+                    tablaAmortizacion.innerHTML = "";
+                    data.amortizacion.forEach(cuota => {
+                        const fila = `
+                            <tr>
+                                <td>${cuota.numero_cuota}</td>
+                                <td>${cuota.fecha_pago}</td>
+                                <td>${cuota.monto_cuota}</td>
+                                <td>${cuota.interes}</td>
+                                <td>${cuota.capital}</td>
+                                <td>${cuota.saldo_restante}</td>
+                            </tr>
+                        `;
+                        tablaAmortizacion.innerHTML += fila;
+                    });
+
+                    const modal = new bootstrap.Modal(document.getElementById('detallesPrestamoModal'));
+                    modal.show();
+                })
+                .catch(error => console.error('Error al obtener detalles del préstamo:', error));
+        }
+
+        // Función para eliminar un préstamo
+        function eliminarPrestamo(id) {
+            if (confirm("¿Estás seguro de eliminar este préstamo?")) {
+                fetch(`eliminar_prestamo.php?id=${id}`, { method: 'DELETE' })
+                    .then(response => response.json())
+                    .then(data => {
+                        alert(data.message);
+                        cargarTodosLosPrestamos(); // Recargar la lista de préstamos
+                    })
+                    .catch(error => {
+                        console.error('Error al eliminar préstamo:', error);
+                        alert('Error al eliminar préstamo. Verifica la consola para más detalles.');
+                    });
+            }
+        }
+    </script>
+</body>
+</html>

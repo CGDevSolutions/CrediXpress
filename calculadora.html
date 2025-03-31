@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Préstamos</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #001f3f 50%, #002147 100%);
+            height: 100vh;
+            color: white;
+            text-align: center;
+        }
+        .navbar {
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        .navbar-brand, .nav-link {
+            color: white !important;
+            font-weight: 500;
+            transition: color 0.3s ease-in-out;
+        }
+        .nav-link:hover {
+            color: #FFD700 !important;
+        }
+        .container {
+            margin-top: 5rem;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            max-width: 1200px;
+        }
+        .calculadora-container {
+            margin-top: 5rem;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .btn-danger {
+            background-color: #FF4C4C;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            transition: all 0.3s ease-in-out;
+        }
+        .btn-danger:hover {
+            background-color: #cc0000;
+        }
+        .tabla-amortizacion {
+            color: white !important;
+        }
+        .tabla-amortizacion th,
+        .tabla-amortizacion td {
+            color: white !important;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="index.html">Inicio</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="calculadora.html">Calculadora</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="ingresar_cliente.html">Ingresar Cliente</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="consultar_clientes.html">Consultar Clientes</a>
+                    </li> 
+                    <li class="nav-item">
+                        <a class="nav-link" href="configuracion.html">Configuración</a>
+                    </li>
+                </ul>
+            </div>
+            <button class="btn btn-danger" onclick="cerrarSesion()">Cerrar Sesión</button>
+        </div>
+    </nav>
+
+    <div class="calculadora-container">
+        <h2 class="my-4 text-center">Calculadora de Préstamos</h2>
+        <form id="prestamoForm">
+            <div class="mb-3">
+                <label for="monto" class="form-label">Monto del préstamo:</label>
+                <input type="number" class="form-control" id="monto" required>
+            </div>
+            <div class="mb-3">
+                <label for="interes" class="form-label">Interés (%):</label>
+                <input type="number" class="form-control" id="interes" required>
+            </div>
+            <div class="mb-3">
+                <label for="modalidad" class="form-label">Modalidad:</label>
+                <select class="form-select" id="modalidad" required>
+                    <option value="diario">Diario</option>
+                    <option value="semanal">Semanal</option>
+                    <option value="quincenal">Quincenal</option>
+                    <option value="mensual">Mensual</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="plazo" class="form-label">Plazo:</label>
+                <input type="number" class="form-control" id="plazo" required>
+            </div>
+            <button type="button" class="btn btn-primary btn-custom" onclick="calcularPrestamo(); generarTabla()">Calcular y Generar Tabla</button>
+            <button type="button" class="btn btn-secondary btn-custom" onclick="limpiarCampos()">Limpiar</button>
+            <button type="button" class="btn btn-info btn-custom" onclick="generarPrestamo()">Generar Préstamo</button>
+        </form>
+
+        <div id="resultado" class="mt-4"></div>
+        <div id="tablaAmortizacion"></div>
+        <div id="formularioPrestamo"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let totalPagarGlobal;
+        let abonos = [];
+        let amortizacion = [];
+        let nombreClienteSeleccionado = ""; // Variable global para almacenar el nombre del cliente
+
+        // Función para calcular el préstamo
+        function calcularPrestamo() {
+            let monto = parseFloat(document.getElementById("monto").value);
+            let interes = parseFloat(document.getElementById("interes").value) / 100;
+            let modalidad = document.getElementById("modalidad").value;
+            let plazo = parseInt(document.getElementById("plazo").value);
+
+            if (isNaN(monto) || monto <= 0 || isNaN(interes) || interes <= 0 || isNaN(plazo) || plazo <= 0) {
+                alert("Por favor, ingrese valores válidos.");
+                return;
+            }
+
+            let totalPagar;
+            let cuota;
+            if (modalidad === "semanal" || modalidad === "quincenal" || modalidad === "mensual") {
+                let semanasPorMes = 4;
+                let quincenasPorMes = 2;
+                let meses = modalidad === "semanal" ? plazo / semanasPorMes : modalidad === "quincenal" ? plazo / quincenasPorMes : plazo;
+                let interesTotal = monto * interes * meses;
+                totalPagar = monto + interesTotal;
+                cuota = totalPagar / plazo;
+            } else {
+                totalPagar = monto + (monto * interes);
+                cuota = totalPagar / plazo;
+            }
+            totalPagarGlobal = totalPagar;
+            document.getElementById("resultado").innerHTML = 
+                `<div class="alert alert-info">
+                    <p><strong>Valor de la cuota:</strong> ${cuota.toFixed(2)}</p>
+                    <p><strong>Total a pagar:</strong> ${totalPagar.toFixed(2)}</p>
+                </div>`;
+        }
+
+        // Función para limpiar los campos
+        function limpiarCampos() {
+            document.getElementById("prestamoForm").reset();
+            document.getElementById("resultado").innerHTML = "";
+            document.getElementById("tablaAmortizacion").innerHTML = "";
+            document.getElementById("formularioPrestamo").innerHTML = "";
+            abonos = [];
+            amortizacion = [];
+            nombreClienteSeleccionado = ""; // Limpiar el nombre del cliente
+        }
+
+        // Función para generar la tabla de amortización
+        function generarTabla() {
+            let tabla = `<table class="table table-striped tabla-amortizacion">
+                <thead>
+                    <tr>
+                        <th># Cuota</th>
+                        <th>Valor Cuota</th>
+                        <th>Saldo Anterior</th>
+                        <th>Nuevo Saldo</th>
+                        <th>Fecha Pago</th>
+                        <th>Abono Realizado</th>
+                        <th>Fecha Abono</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+            let fecha = new Date();
+            let cuota = totalPagarGlobal / parseInt(document.getElementById("plazo").value);
+            let saldoAnterior = totalPagarGlobal;
+
+            amortizacion = []; // Reiniciar la tabla de amortización
+
+            for (let i = 1; i <= parseInt(document.getElementById("plazo").value); i++) {
+                let incremento = { diario: 1, semanal: 7, quincenal: 15, mensual: 30 }[document.getElementById("modalidad").value];
+                fecha.setDate(fecha.getDate() + incremento);
+
+                let abono = abonos[i - 1] ? abonos[i - 1].monto : 0;
+                let fechaAbono = abonos[i - 1] ? abonos[i - 1].fecha : "-";
+
+                let nuevoSaldo = saldoAnterior - abono;
+
+                amortizacion.push({
+                    cuota: i,
+                    valorCuota: cuota.toFixed(2),
+                    saldoAnterior: saldoAnterior.toFixed(2),
+                    nuevoSaldo: nuevoSaldo.toFixed(2),
+                    fechaPago: fecha.toLocaleDateString(),
+                    abonoRealizado: abono.toFixed(2),
+                    fechaAbono: fechaAbono
+                });
+
+                tabla += 
+                    `<tr>
+                        <td>${i}</td>
+                        <td>${cuota.toFixed(2)}</td>
+                        <td>${saldoAnterior.toFixed(2)}</td>
+                        <td>${nuevoSaldo.toFixed(2)}</td>
+                        <td>${fecha.toLocaleDateString()}</td>
+                        <td>${abono.toFixed(2)}</td>
+                        <td>${fechaAbono}</td>
+                    </tr>`;
+
+                saldoAnterior = nuevoSaldo;
+            }
+
+            tabla += `</tbody></table>
+                <button class="btn btn-danger" onclick='cancelarCuota()'>Cancelar Cuota</button>`;
+            document.getElementById("tablaAmortizacion").innerHTML = tabla;
+        }
+
+        // Función para cancelar una cuota
+        function cancelarCuota() {
+            let abono = parseFloat(prompt("Ingrese el monto a abonar:"));
+            if (!isNaN(abono) && abono > 0) {
+                abonos.push({ monto: abono, fecha: new Date().toLocaleDateString() });
+                generarTabla();
+                alert("Abono registrado correctamente.");
+            } else {
+                alert("Ingrese un monto válido.");
+            }
+        }
+
+        // Función para generar el préstamo
+        function generarPrestamo() {
+            fetch('obtener_clientes.php')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Error en la respuesta del servidor');
+                    }
+                    return response.json();
+                })
+                .then(clientes => {
+                    if (!clientes || clientes.length === 0) {
+                        document.getElementById("formularioPrestamo").innerHTML = "<p>No hay clientes disponibles.</p>";
+                        return;
+                    }
+                    let selectClientes = '<label for="cliente">Seleccionar Cliente:</label>';
+                    selectClientes += '<select id="cliente" class="form-select" onchange="actualizarNombreCliente(this)">'; // Agregar evento onchange
+                    clientes.forEach(cliente => {
+                        selectClientes += `<option value="${cliente.id}">${cliente.nombre_completo}</option>`;
+                    });
+                    selectClientes += '</select>';
+                    document.getElementById("formularioPrestamo").innerHTML = 
+                        `<div class="mt-3">
+                            ${selectClientes}
+                            <button class="btn btn-success mt-2" onclick="guardarPrestamo()">Asignar Préstamo</button>
+                        </div>`;
+                })
+                .catch(error => {
+                    console.error('Error al obtener clientes:', error);
+                    alert('Error al obtener clientes. Verifica la consola para más detalles.');
+                });
+        }
+
+        // Función para actualizar el nombre del cliente seleccionado
+        function actualizarNombreCliente(select) {
+            const selectedOption = select.options[select.selectedIndex];
+            nombreClienteSeleccionado = selectedOption.text; // Guardar el nombre del cliente seleccionado
+        }
+
+        // Función para guardar el préstamo
+        function guardarPrestamo() {
+            let clienteId = document.getElementById("cliente").value;
+            if (!clienteId) {
+                alert("Seleccione un cliente.");
+                return;
+            }
+
+            let datosPrestamo = {
+                clienteId: clienteId,
+                monto: document.getElementById("monto").value,
+                interes: document.getElementById("interes").value,
+                modalidad: document.getElementById("modalidad").value,
+                plazo: document.getElementById("plazo").value,
+                totalPagar: totalPagarGlobal,
+                amortizacion: amortizacion
+            };
+
+            fetch('guardar_prestamo.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(datosPrestamo)
+            })
+            .then(response => response.text())
+            .then(data => {
+                // Mostrar mensaje de éxito con el nombre del cliente
+                alert(`Préstamo generado y asignado con éxito a ${nombreClienteSeleccionado}.`);
+                limpiarCampos();
+            })
+            .catch(error => {
+                console.error('Error al guardar préstamo:', error);
+                alert('Error al guardar el préstamo. Verifica la consola para más detalles.');
+            });
+        }
+    </script>
+</body>
+</html>

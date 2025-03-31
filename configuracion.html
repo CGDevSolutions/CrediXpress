@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuración de Usuarios</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: #f8f9fa;
+        }
+        .navbar {
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .container {
+            margin-top: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="index.html">Inicio</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="calculadora.html">Calculadora</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="ingresar_cliente.html">Ingresar Cliente</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="consultar_clientes.html">Consultar Clientes</a>
+                    </li> 
+                    <li class="nav-item">
+                        <a class="nav-link" href="configuracion.html">Configuración</a>
+                    </li>
+                </ul>
+            </div>
+            <button class="btn btn-danger" onclick="cerrarSesion()">Cerrar Sesión</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h2 class="my-4 text-center">Configuración de Usuarios</h2>
+
+        <!-- Verificación de rol -->
+        <div id="accesoDenegado" class="alert alert-danger" style="display: none;">
+            <strong>Acceso denegado:</strong> Solo los usuarios con rol de administrador o gerente pueden acceder a esta página.
+        </div>
+
+        <!-- Formulario para agregar usuarios -->
+        <div id="formularioAgregarUsuario" style="display: none;">
+            <h4>Agregar Nuevo Usuario</h4>
+            <form id="formAgregarUsuario" method="POST" action="usuarios.php">
+                <div class="mb-3">
+                    <label for="nombreUsuario" class="form-label">Nombre de Usuario:</label>
+                    <input type="text" class="form-control" id="nombreUsuario" name="nombreUsuario" required>
+                </div>
+                <div class="mb-3">
+                    <label for="passwordUsuario" class="form-label">Contraseña:</label>
+                    <input type="password" class="form-control" id="passwordUsuario" name="passwordUsuario" required>
+                </div>
+                <div class="mb-3">
+                    <label for="rolUsuario" class="form-label">Rol:</label>
+                    <select class="form-select" id="rolUsuario" name="rolUsuario" required>
+                        <option value="admin">Administrador</option>
+                        <option value="gerente">Gerente</option>
+                        <option value="empleado">Empleado</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Agregar Usuario</button>
+            </form>
+        </div>
+
+        <!-- Lista de usuarios existentes -->
+        <div id="listaUsuarios" class="mt-4" style="display: none;">
+            <h4>Lista de Usuarios</h4>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Nombre de Usuario</th>
+                        <th>Rol</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaUsuarios">
+                    <!-- Aquí se cargarán los usuarios dinámicamente -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Verificación de rol al cargar la página
+        window.onload = function() {
+            const rol = localStorage.getItem("rol");
+            if (rol === "gerente" || rol === "admin") {
+                document.getElementById("formularioAgregarUsuario").style.display = "block";
+                document.getElementById("listaUsuarios").style.display = "block";
+               // cargarUsuarios();
+            } else {
+                document.getElementById("accesoDenegado").style.display = "block";
+            }
+        };
+         
+        
+
+        // Función para cerrar sesión
+        function cerrarSesion() {
+            localStorage.removeItem("sesion");
+            localStorage.removeItem("rol");
+            window.location.href = "login.html";
+        }
+    </script>
+</body>
+</html>
