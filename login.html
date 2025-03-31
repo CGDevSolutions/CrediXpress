@@ -69,38 +69,73 @@
         <p id="mensajeError" class="mensaje-error text-center mt-3"></p>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.getElementById('loginForm').addEventListener('submit', async function(event) {
             event.preventDefault();
 
             const usuario = document.getElementById('usuario').value;
             const password = document.getElementById('password').value;
+            const mensajeError = document.getElementById('mensajeError');
+
+            // Validación básica del lado del cliente
+            if (!usuario || !password) {
+                mensajeError.textContent = 'Por favor complete todos los campos';
+                return;
+            }
 
             try {
-                const response = await fetch('http://localhost:8000/login.php', {
+                // Mostrar estado de carga
+                mensajeError.textContent = 'Verificando credenciales...';
+                mensajeError.style.color = 'yellow';
+
+                const response = await fetch('/api/login', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                    },
                     body: JSON.stringify({ usuario, password })
                 });
 
-                const text = await response.text();
-                console.log("Respuesta del servidor:", text); // Depuración
+                if (!response.ok) {
+                    throw new Error(`Error HTTP: ${response.status}`);
+                }
 
-                const data = JSON.parse(text);
+                const data = await response.json();
 
                 if (data.success) {
+                    // Almacenar datos de sesión
                     localStorage.setItem('sesion', 'activa');
                     localStorage.setItem('usuario', data.usuario);
                     localStorage.setItem('rol', data.rol);
-                    window.location.href = 'index.html';
+                    
+                    // Redirigir según el rol
+                    if (data.rol === 'admin' || data.rol === 'gerente') {
+                        window.location.href = 'configuracion.html';
+                    } else {
+                        window.location.href = 'index.html';
+                    }
                 } else {
-                    document.getElementById('mensajeError').textContent = data.message;
+                    mensajeError.textContent = data.message || 'Credenciales incorrectas';
+                    mensajeError.style.color = 'rgba(255, 0, 0, 0.8)';
                 }
             } catch (error) {
-                console.error('Error:', error);
-                document.getElementById('mensajeError').textContent = 'Error al iniciar sesión. Inténtelo de nuevo.';
+                console.error('Error en el login:', error);
+                mensajeError.textContent = 'Error al conectar con el servidor. Intente nuevamente.';
+                mensajeError.style.color = 'rgba(255, 0, 0, 0.8)';
+                
+                // Opcional: Reintentar automáticamente
+                setTimeout(() => {
+                    mensajeError.textContent = 'Reintentando conexión...';
+                    event.target.dispatchEvent(new Event('submit'));
+                }, 3000);
             }
         });
+
+        // Verificar si ya está logueado
+        if (localStorage.getItem('sesion') {
+            window.location.href = 'index.html';
+        }
     </script>
 </body>
 </html>
