@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Sistema de Préstamos</title>
+    <title>Login - CrediXpress</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body {
@@ -71,13 +71,45 @@
             width: 1.5rem;
             height: 1.5rem;
         }
+        .btn-outline-gold {
+            color: #FFD700;
+            border-color: #FFD700;
+        }
+        .btn-outline-gold:hover {
+            background-color: rgba(255, 215, 0, 0.1);
+        }
+        .btn-outline-gold.active {
+            background-color: #FFD700;
+            color: #002147;
+        }
+        .auth-providers {
+            margin-bottom: 1.5rem;
+        }
+        .provider-btn {
+            margin: 0.25rem;
+            flex: 1;
+        }
     </style>
-    <!-- Elimina la búsqueda de favicon -->
     <link rel="icon" href="data:,">
 </head>
 <body>
     <div class="login-container">
         <h1 class="login-title">CrediXpress</h1>
+        
+        <div class="auth-providers d-flex flex-wrap justify-content-center">
+            <button type="button" class="btn btn-outline-gold provider-btn" id="btnEritraLogin">
+                Iniciar con Eritra ID
+            </button>
+            <button type="button" class="btn btn-outline-gold provider-btn" id="btnGithubLogin">
+                Iniciar con GitHub
+            </button>
+        </div>
+        
+        <div class="separator d-flex align-items-center my-3">
+            <div class="line flex-grow-1" style="height: 1px; background: rgba(255,255,255,0.2)"></div>
+            <div class="mx-3 text-white">o</div>
+            <div class="line flex-grow-1" style="height: 1px; background: rgba(255,255,255,0.2)"></div>
+        </div>
         
         <form id="loginForm">
             <div class="mb-3">
@@ -115,27 +147,37 @@
             const btnText = document.getElementById('btnText');
             const spinner = document.querySelector('.spinner');
             const mensajeError = document.getElementById('mensajeError');
+            const btnEritraLogin = document.getElementById('btnEritraLogin');
+            const btnGithubLogin = document.getElementById('btnGithubLogin');
 
+            // Configurar proveedores externos
+            btnEritraLogin.addEventListener('click', () => {
+                window.location.href = '/auth/login/xad';
+            });
+
+            btnGithubLogin.addEventListener('click', () => {
+                window.location.href = '/auth/login/github';
+            });
+
+            // Manejar autenticación local
             loginForm.addEventListener('submit', async function(event) {
                 event.preventDefault();
                 
                 const usuario = document.getElementById('usuario').value.trim();
                 const password = document.getElementById('password').value.trim();
 
-                // Validación básica del lado del cliente
                 if (!usuario || !password) {
                     showError('Por favor complete todos los campos');
                     return;
                 }
 
-                // Mostrar estado de carga
                 btnText.textContent = 'Verificando...';
                 spinner.style.display = 'inline-block';
                 btnLogin.disabled = true;
                 mensajeError.style.display = 'none';
 
                 try {
-                    const response = await fetch('/api/auth/login', {
+                    const response = await fetch('/auth/login/local', {
                         method: 'POST',
                         headers: { 
                             'Content-Type': 'application/json',
@@ -146,22 +188,17 @@
                         })
                     });
 
-                    // Verificar primero el estado de la respuesta
                     if (!response.ok) {
-                        const errorData = await response.text();
-                        throw new Error(errorData || 'Error en la autenticación');
+                        const errorData = await response.json();
+                        throw new Error(errorData.message || 'Error en la autenticación');
                     }
 
-                    // Procesar la respuesta JSON sólo si la respuesta es exitosa
                     const data = await response.json();
 
                     if (data.success) {
-                        // Almacenar datos de sesión
                         localStorage.setItem('authToken', data.token || '');
                         localStorage.setItem('usuario', data.usuario);
                         localStorage.setItem('rol', data.rol);
-                        
-                        // Redirigir según el rol
                         redirectByRole(data.rol);
                     } else {
                         throw new Error(data.message || 'Credenciales incorrectas');
@@ -171,7 +208,6 @@
                     console.error('Error en el login:', error);
                     showError(error.message || 'Error al conectar con el servidor');
                 } finally {
-                    // Restaurar estado normal del botón
                     btnText.textContent = 'Ingresar';
                     spinner.style.display = 'none';
                     btnLogin.disabled = false;
@@ -184,7 +220,6 @@
                 mensajeError.style.backgroundColor = 'rgba(220, 53, 69, 0.2)';
                 mensajeError.style.color = '#dc3545';
                 
-                // Ocultar mensaje después de 5 segundos
                 setTimeout(() => {
                     mensajeError.style.display = 'none';
                 }, 5000);
@@ -205,7 +240,6 @@
         });
     </script>
 
-    <!-- Bootstrap JS Bundle con Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
