@@ -1,65 +1,99 @@
+const sql = require('mssql');
+
+// Configuración de la conexión a la base de datos
+const dbConfig = {
+  user: 'sqladmin',
+  password: 'Carlosflowc08',
+  server: 'bdprestamos.database.windows.net',
+  database: 'PrestamosDB', // Asumo este nombre, ajústalo si es diferente
+  options: {
+    encrypt: true, // Necesario para Azure SQL
+    enableArithAbort: true
+  }
+};
+
 module.exports = async function (context, req) {
-    const provider = context.bindingData.provider; // xad o github
-    const { code, state } = req.query; // Para OAuth
-    const { usuario, password } = req.body; // Para autenticación básica
+    const { usuario, contrasena } = req.body;
 
-    try {
-        // Autenticación según proveedor
-        let userData;
-        
-        if (provider === 'xad') {
-            // Autenticación con Eritra ID (ejemplo)
-            userData = await authenticateWithEritraID(code);
-        } else if (provider === 'github') {
-            // Autenticación con GitHub (ejemplo)
-            userData = await authenticateWithGitHub(code);
-        } else {
-            // Autenticación básica (solo para desarrollo)
-            if (usuario === 'admin' && password === '1234') {
-                userData = { 
-                    usuario: 'admin',
-                    rol: 'admin' 
-                };
-            } else {
-                throw new Error('Credenciales incorrectas');
-            }
-        }
-
-        // Generar token (en producción usar JWT firmado)
-        const token = generateSecureToken(userData);
-
+    // Validación básica
+    if (!usuario || !contrasena) {
         return context.res = {
-            status: 200,
-            body: {
-                success: true,
-                usuario: userData.usuario,
-                rol: userData.rol,
-                token: token
-            }
-        };
-    } catch (error) {
-        return context.res = {
-            status: 401,
+            status: 400,
             body: {
                 success: false,
-                message: error.message
+                message: "Usuario y contraseña son requeridos"
+            },
+            headers: {
+                'Content-Type': 'application/json'
             }
         };
     }
+
+    let pool;
+    try {
+        // Crear conexión a la base de datos
+        pool = await sql.connect(dbConfig);
+        
+        // Consulta para verificar credenciales
+        const result = await pool.request()
+            .input('usuario', sql.NVarChar, usuario)
+            .input('contrasena', sql.NVarChar, contrasena)
+            .query(`
+                SELECT id, nombre, rol 
+                FROM usuarios 
+                WHERE usuario = @usuario AND contrasena = @contrasena
+            `);
+
+        // Verificar si se encontró el usuario
+        if (result.recordset.length > 0) {
+            const user = result.recordset[0];
+            
+            return context.res = {
+                status: 200,
+                body: {
+                    success: true,
+                    usuario: user.nombre || usuario,
+                    rol: user.rol || 'usuario',
+                    token: generateToken(user.id) // Función para generar token
+                },
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            };
+        } else {
+            return context.res = {
+                status: 401,
+                body: {
+                    success: false,
+                    message: 'Credenciales incorrectas'
+                },
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            };
+        }
+    } catch (error) {
+        context.log.error('Error en la autenticación:', error);
+        
+        return context.res = {
+            status: 500,
+            body: {
+                success: false,
+                message: 'Error en el servidor al autenticar'
+            },
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        };
+    } finally {
+        // Cerrar la conexión si existe
+        if (pool) {
+            await pool.close();
+        }
+    }
 };
 
-// Funciones auxiliares (implementar según necesidad)
-async function authenticateWithEritraID(code) {
-    // Implementar lógica real con Eritra ID
-    return { usuario: 'eritra-user', rol: 'user' };
-}
-
-async function authenticateWithGitHub(code) {
-    // Implementar lógica real con GitHub OAuth
-    return { usuario: 'github-user', rol: 'developer' };
-}
-
-function generateSecureToken(userData) {
-    // En producción: usar jsonwebtoken o similar
-    return `secure-token-${Date.now()}`;
+// Función simple para generar token (mejorar en producción)
+function generateToken(userId) {
+    return Buffer.from(`${userId}|${Date.now()}`).toString('base64');
 }
