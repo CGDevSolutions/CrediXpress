@@ -6,7 +6,7 @@
       "direction": "in",
       "name": "req",
       "methods": ["post"],
-      "route": "api/auth/login"
+      "route": "/auth/login/github"
     },
     {
       "type": "http",
