@@ -71,45 +71,12 @@
             width: 1.5rem;
             height: 1.5rem;
         }
-        .btn-outline-gold {
-            color: #FFD700;
-            border-color: #FFD700;
-        }
-        .btn-outline-gold:hover {
-            background-color: rgba(255, 215, 0, 0.1);
-        }
-        .btn-outline-gold.active {
-            background-color: #FFD700;
-            color: #002147;
-        }
-        .auth-providers {
-            margin-bottom: 1.5rem;
-        }
-        .provider-btn {
-            margin: 0.25rem;
-            flex: 1;
-        }
     </style>
     <link rel="icon" href="data:,">
 </head>
 <body>
     <div class="login-container">
         <h1 class="login-title">CrediXpress</h1>
-        
-        <div class="auth-providers d-flex flex-wrap justify-content-center">
-            <button type="button" class="btn btn-outline-gold provider-btn" id="btnEritraLogin">
-                Iniciar con Eritra ID
-            </button>
-            <button type="button" class="btn btn-outline-gold provider-btn" id="btnGithubLogin">
-                Iniciar con GitHub
-            </button>
-        </div>
-        
-        <div class="separator d-flex align-items-center my-3">
-            <div class="line flex-grow-1" style="height: 1px; background: rgba(255,255,255,0.2)"></div>
-            <div class="mx-3 text-white">o</div>
-            <div class="line flex-grow-1" style="height: 1px; background: rgba(255,255,255,0.2)"></div>
-        </div>
         
         <form id="loginForm">
             <div class="mb-3">
@@ -137,7 +104,6 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Verificar si ya está autenticado
             if (localStorage.getItem('authToken')) {
                 redirectByRole(localStorage.getItem('rol'));
             }
@@ -147,26 +113,14 @@
             const btnText = document.getElementById('btnText');
             const spinner = document.querySelector('.spinner');
             const mensajeError = document.getElementById('mensajeError');
-            const btnEritraLogin = document.getElementById('btnEritraLogin');
-            const btnGithubLogin = document.getElementById('btnGithubLogin');
 
-            // Configurar proveedores externos
-            btnEritraLogin.addEventListener('click', () => {
-                window.location.href = '/auth/login/xad';
-            });
-
-            btnGithubLogin.addEventListener('click', () => {
-                window.location.href = '/auth/login/github';
-            });
-
-            // Manejar autenticación local
             loginForm.addEventListener('submit', async function(event) {
                 event.preventDefault();
                 
                 const usuario = document.getElementById('usuario').value.trim();
-                const password = document.getElementById('password').value.trim();
+                const contrasena = document.getElementById('password').value.trim();
 
-                if (!usuario || !password) {
+                if (!usuario || !contrasena) {
                     showError('Por favor complete todos los campos');
                     return;
                 }
@@ -177,14 +131,14 @@
                 mensajeError.style.display = 'none';
 
                 try {
-                    const response = await fetch('/auth/login/local', {
+                    const response = await fetch('/api/auth/login', {
                         method: 'POST',
                         headers: { 
                             'Content-Type': 'application/json',
                         },
                         body: JSON.stringify({ 
                             usuario: usuario, 
-                            password: password 
+                            contrasena: contrasena 
                         })
                     });
 
