@@ -2,7 +2,7 @@ const { app } = require('@azure/functions');
 const sql = require('mssql');
 const crypto = require('crypto');
 
-// Configuración de conexión
+// Configuración mejorada para Azure SQL
 const dbConfig = {
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
@@ -21,30 +21,51 @@ const dbConfig = {
     }
 };
 
+// Pool de conexiones global
 const pool = new sql.ConnectionPool(dbConfig);
 const poolConnect = pool.connect();
 
 app.post('login', {
     authLevel: 'anonymous',
     handler: async (request, context) => {
-        context.log('Proceso de login iniciado');
+        context.log('Iniciando proceso de login...');
         
         try {
+            // Verificar cuerpo de la petición
+            if (!request.body) {
+                return {
+                    status: 400,
+                    jsonBody: {
+                        success: false,
+                        message: "Datos de login no proporcionados"
+                    },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Access-Control-Allow-Origin': '*'
+                    }
+                };
+            }
+
             const { usuario, contrasena } = await request.json();
             
+            // Validación básica
             if (!usuario?.trim() || !contrasena?.trim()) {
                 return {
                     status: 400,
                     jsonBody: {
                         success: false,
                         message: "Usuario y contraseña son requeridos"
+                    },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Access-Control-Allow-Origin': '*'
                     }
                 };
             }
 
-            await poolConnect;
+            await poolConnect; // Usar conexión existente
             
-            // Consulta ajustada para la tabla Usuarios (con mayúscula)
+            // Consulta segura con parámetros
             const result = await pool.request()
                 .input('username', sql.NVarChar, usuario.trim())
                 .query(`
@@ -56,71 +77,86 @@ app.post('login', {
                 `);
 
             if (result.recordset.length === 0) {
-                context.log(`Usuario no encontrado: ${usuario}`);
                 return {
                     status: 401,
                     jsonBody: {
                         success: false,
                         message: "Usuario no encontrado o inactivo"
+                    },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Access-Control-Allow-Origin': '*'
                     }
                 };
             }
 
             const user = result.recordset[0];
             
-            // Verificación de contraseña (ajustar según tu método de almacenamiento)
+            // Verificar contraseña (SHA-256)
             const hashedInput = crypto.createHash('sha256').update(contrasena).digest('hex');
             if (user.password !== hashedInput) {
-                context.log(`Contraseña incorrecta para usuario: ${usuario}`);
                 return {
                     status: 401,
                     jsonBody: {
                         success: false,
                         message: "Contraseña incorrecta"
+                    },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Access-Control-Allow-Origin': '*'
                     }
                 };
             }
 
-            context.log(`Login exitoso para: ${user.username}`);
-            
+            // Generar respuesta exitosa
             return {
                 status: 200,
                 jsonBody: {
                     success: true,
-                    token: generateToken(user),
+                    token: "simulated-jwt-token", // En producción usar jsonwebtoken
+                    usuario: user.username,
+                    rol: user.rol,
                     userData: {
-                        id: user.id,
                         nombre: user.nombre,
-                        email: user.email,
-                        rol: user.rol
+                        email: user.email
                     }
+                },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
                 }
             };
             
         } catch (error) {
-            context.error('Error en login:', error);
+            context.error('Error en el login:', error);
+            
             return {
                 status: 500,
                 jsonBody: {
                     success: false,
-                    message: "Error en el servidor",
+                    message: "Error interno del servidor",
                     debug: process.env.NODE_ENV === 'development' ? error.message : undefined
+                },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
                 }
             };
         }
     }
 });
 
-// Función para generar token JWT básico
-function generateToken(user) {
-    const payload = {
-        sub: user.id,
-        name: user.nombre,
-        role: user.rol,
-        email: user.email,
-        exp: Math.floor(Date.now() / 1000) + (60 * 60) // 1 hora de expiración
-    };
-    
-    // En producción, usa: jsonwebtoken.sign(payload, process.env.JWT_SECRET)
-    return Buffer.from(JSON.stringify(payload)).toString('base64');
-}
+// Manejar CORS para OPTIONS
+app.options('login', {
+    authLevel: 'anonymous',
+    handler: async (request, context) => {
+        return {
+            status: 204,
+            headers: {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'POST, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type'
+            }
+        };
+    }
+});
