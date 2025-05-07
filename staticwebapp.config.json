@@ -1,0 +1,23 @@
+{
+  "routes": [
+    {
+      "route": "/api/*",
+      "methods": ["GET", "POST", "OPTIONS"],
+      "allowedRoles": ["anonymous"]
+    }
+  ],
+  "responseOverrides": {
+    "400": {
+      "rewrite": "/error.html"
+    },
+    "401": {
+      "rewrite": "/login.html"
+    },
+    "403": {
+      "rewrite": "/error.html?error=403"
+    },
+    "404": {
+      "rewrite": "/error.html?error=404"
+    }
+  }
+}
