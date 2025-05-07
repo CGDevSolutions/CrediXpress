@@ -133,8 +133,10 @@
                 mensajeError.style.display = 'none';
 
                 try {
-                    // Usar la ruta correcta para Azure Static Web Apps
-                    const apiUrl = '/api/login';
+                    // URL para Azure Static Web Apps
+                    const apiUrl = window.location.hostname === 'localhost' 
+                        ? '/api/login' 
+                        : '/api/login';
                     
                     const response = await fetch(apiUrl, {
                         method: 'POST',
@@ -148,33 +150,26 @@
                         })
                     });
 
-                    // Manejo mejorado de la respuesta
-                    const responseText = await response.text();
-                    let data = {};
-                    
-                    try {
-                        data = responseText ? JSON.parse(responseText) : {};
-                    } catch (e) {
-                        console.error('Error parsing JSON:', e);
-                        throw new Error('Respuesta inválida del servidor');
-                    }
-
+                    // Manejo mejorado de errores HTTP
                     if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({}));
                         throw new Error(
-                            data.message || 
-                            `Error en la autenticación (${response.status} ${response.statusText})`
+                            errorData.message || 
+                            `Error en el servidor (${response.status})`
                         );
                     }
 
+                    const data = await response.json();
+
                     if (data.success) {
                         // Almacenar datos de autenticación
-                        localStorage.setItem('authToken', data.token || '');
-                        localStorage.setItem('usuario', data.usuario);
-                        localStorage.setItem('rol', data.rol);
+                        localStorage.setItem('authToken', data.token || 'simulated-token');
+                        localStorage.setItem('usuario', data.usuario || usuario);
+                        localStorage.setItem('rol', data.rol || 'user');
                         localStorage.setItem('userData', JSON.stringify(data.userData || {}));
                         
                         // Redirección basada en rol
-                        redirectByRole(data.rol);
+                        redirectByRole(data.rol || 'user');
                     } else {
                         throw new Error(data.message || 'Credenciales incorrectas');
                     }
@@ -182,19 +177,17 @@
                 } catch (error) {
                     console.error('Error en el login:', error);
                     
-                    // Mensajes de error más específicos
+                    // Mensajes de error específicos
                     let errorMessage = error.message;
                     if (error.message.includes('Failed to fetch')) {
-                        errorMessage = 'No se pudo conectar al servidor. Verifica tu conexión.';
-                    } else if (error.message.includes('NetworkError')) {
-                        errorMessage = 'Problema de red. Intenta nuevamente.';
-                    } else if (error.message.includes('404')) {
-                        errorMessage = 'Servicio no disponible. Contacta al administrador.';
+                        errorMessage = 'No se pudo conectar al servidor. Verifique su conexión.';
+                    } else if (error.message.includes('500')) {
+                        errorMessage = 'Error interno del servidor. Intente nuevamente más tarde.';
                     }
                     
                     showError(errorMessage);
                     
-                    // Registrar el error en consola para depuración
+                    // Debug en desarrollo
                     if (window.location.hostname === 'localhost') {
                         console.debug('Detalles del error:', error);
                     }
@@ -205,14 +198,20 @@
                 }
             });
 
-            function showError(message) {
+            function showError(message, isWarning = false) {
                 mensajeError.textContent = message;
                 mensajeError.style.display = 'block';
-                mensajeError.style.backgroundColor = 'rgba(220, 53, 69, 0.2)';
-                mensajeError.style.color = '#dc3545';
-                mensajeError.style.border = '1px solid rgba(220, 53, 69, 0.5)';
                 
-                // Desaparecer después de 5 segundos
+                if (isWarning) {
+                    mensajeError.style.backgroundColor = 'rgba(255, 193, 7, 0.2)';
+                    mensajeError.style.color = '#ffc107';
+                    mensajeError.style.border = '1px solid rgba(255, 193, 7, 0.5)';
+                } else {
+                    mensajeError.style.backgroundColor = 'rgba(220, 53, 69, 0.2)';
+                    mensajeError.style.color = '#dc3545';
+                    mensajeError.style.border = '1px solid rgba(220, 53, 69, 0.5)';
+                }
+                
                 setTimeout(() => {
                     mensajeError.style.display = 'none';
                 }, 5000);
@@ -227,7 +226,8 @@
                     'default': 'index.html'
                 };
                 
-                window.location.href = roleRoutes[rol] || roleRoutes.default;
+                const targetPage = roleRoutes[rol.toLowerCase()] || roleRoutes.default;
+                window.location.href = targetPage;
             }
         });
     </script>
