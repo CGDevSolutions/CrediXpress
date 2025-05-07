@@ -1,6 +1,8 @@
 const { app } = require('@azure/functions');
 const sql = require('mssql');
+const crypto = require('crypto');
 
+// Configuración de conexión
 const dbConfig = {
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
@@ -8,21 +10,29 @@ const dbConfig = {
     database: process.env.DB_NAME,
     options: {
         encrypt: true,
-        trustServerCertificate: false
+        trustServerCertificate: false,
+        connectTimeout: 15000,
+        requestTimeout: 15000
+    },
+    pool: {
+        max: 10,
+        min: 0,
+        idleTimeoutMillis: 30000
     }
 };
+
+const pool = new sql.ConnectionPool(dbConfig);
+const poolConnect = pool.connect();
 
 app.post('login', {
     authLevel: 'anonymous',
     handler: async (request, context) => {
-        context.log('Iniciando proceso de login...');
+        context.log('Proceso de login iniciado');
         
         try {
             const { usuario, contrasena } = await request.json();
-            context.log(`Intento de login para usuario: ${usuario}`);
             
-            if (!usuario || !contrasena) {
-                context.log('Faltan credenciales');
+            if (!usuario?.trim() || !contrasena?.trim()) {
                 return {
                     status: 400,
                     jsonBody: {
@@ -32,58 +42,85 @@ app.post('login', {
                 };
             }
 
-            context.log('Conectando a la base de datos...');
-            await sql.connect(dbConfig);
+            await poolConnect;
             
-            context.log('Ejecutando consulta SQL...');
-            const result = await sql.query`
-                SELECT u.*, r.nombre as rol 
-                FROM usuarios u
-                JOIN roles r ON u.rol_id = r.id
-                WHERE u.username = ${usuario} 
-                AND u.password = CONVERT(VARCHAR(32), HashBytes('MD5', ${contrasena}), 2)
-                AND u.activo = 1
-            `;
-            
-            if (result.recordset.length > 0) {
-                const user = result.recordset[0];
-                context.log(`Usuario autenticado: ${user.username}`);
-                
-                return {
-                    status: 200,
-                    jsonBody: {
-                        success: true,
-                        token: "simulated-token-12345",
-                        usuario: user.username,
-                        rol: user.rol,
-                        userData: {
-                            nombre: user.nombre,
-                            email: user.email
-                        }
-                    }
-                };
-            } else {
-                context.log('Credenciales incorrectas');
+            // Consulta ajustada para la tabla Usuarios (con mayúscula)
+            const result = await pool.request()
+                .input('username', sql.NVarChar, usuario.trim())
+                .query(`
+                    SELECT U.*, R.nombre as rol 
+                    FROM Usuarios U
+                    JOIN Roles R ON U.rol_id = R.id
+                    WHERE U.username = @username
+                    AND U.activo = 1
+                `);
+
+            if (result.recordset.length === 0) {
+                context.log(`Usuario no encontrado: ${usuario}`);
                 return {
                     status: 401,
                     jsonBody: {
                         success: false,
-                        message: "Usuario o contraseña incorrectos"
+                        message: "Usuario no encontrado o inactivo"
                     }
                 };
             }
+
+            const user = result.recordset[0];
+            
+            // Verificación de contraseña (ajustar según tu método de almacenamiento)
+            const hashedInput = crypto.createHash('sha256').update(contrasena).digest('hex');
+            if (user.password !== hashedInput) {
+                context.log(`Contraseña incorrecta para usuario: ${usuario}`);
+                return {
+                    status: 401,
+                    jsonBody: {
+                        success: false,
+                        message: "Contraseña incorrecta"
+                    }
+                };
+            }
+
+            context.log(`Login exitoso para: ${user.username}`);
+            
+            return {
+                status: 200,
+                jsonBody: {
+                    success: true,
+                    token: generateToken(user),
+                    userData: {
+                        id: user.id,
+                        nombre: user.nombre,
+                        email: user.email,
+                        rol: user.rol
+                    }
+                }
+            };
+            
         } catch (error) {
-            context.error('ERROR EN EL LOGIN:', error);
+            context.error('Error en login:', error);
             return {
                 status: 500,
                 jsonBody: {
                     success: false,
-                    message: "Error interno del servidor",
+                    message: "Error en el servidor",
                     debug: process.env.NODE_ENV === 'development' ? error.message : undefined
                 }
             };
-        } finally {
-            await sql.close();
         }
     }
 });
+
+// Función para generar token JWT básico
+function generateToken(user) {
+    const payload = {
+        sub: user.id,
+        name: user.nombre,
+        role: user.rol,
+        email: user.email,
+        exp: Math.floor(Date.now() / 1000) + (60 * 60) // 1 hora de expiración
+    };
+    
+    // En producción, usa: jsonwebtoken.sign(payload, process.env.JWT_SECRET)
+    return Buffer.from(JSON.stringify(payload)).toString('base64');
+}
